@@ -1,10 +1,12 @@
+
+Author : Cornelio S. Gallardo
+
 # Dx7 — Dialysis Clinical Information System
 
 > **Doctrine:** Dx7 presents lab data as-is from the laboratory source. No color-coded risk. No interpretation labels. No risk stratification. The nephrologist judges. Dx7 presents.
 
 A multi-tenant Clinical Information System (CIS) built for Philippine dialysis centers. Dx7 manages the full shift workflow — from patient roster assignment to lab result review to MD documentation — with HL7 v2.x integration for automated result ingestion from LIS systems.
 
-Author : Cornelio S. Gallardo
 ---
 
 ## Table of Contents
