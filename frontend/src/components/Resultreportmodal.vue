@@ -10,8 +10,14 @@
             <div class="report-modal-sub">{{ patientName }}</div>
           </div>
           <div class="flex gap-2">
-            <button v-if="!loading" class="btn btn-outline btn-sm" @click="downloadPdf" :disabled="downloading">{{ downloading ? "Generating…" : "↓ Download PDF" }}</button>
-            <button v-if="!loading" class="btn btn-primary btn-sm" @click="printReport">🖨 Print</button>
+            <button v-if="!loading" class="btn-pdf" @click="downloadPdf" :disabled="downloading">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+              {{ downloading ? 'Generating…' : 'Download PDF' }}
+            </button>
+            <button v-if="!loading" class="btn-print" @click="printReport">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print
+            </button>
             <button class="modal-close" @click="$emit('close')">✕</button>
           </div>
         </div>
@@ -383,12 +389,12 @@ async function downloadPdf() {
 .rpt-panel       { margin-bottom: 22px; }
 .rpt-panel-title { font-size: 12px; font-weight: 700; color: var(--primary-mid); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid var(--primary-pale); }
 .rpt-table       { width: 100%; border-collapse: collapse; font-size: 13px; }
-.rpt-table thead tr { background: var(--off-white); }
-.rpt-table th    { padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--slate); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.rpt-table td    { padding: 9px 12px; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+.rpt-table thead tr { background: var(--table-head-bg); }
+.rpt-table th    { padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--table-head-color); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.rpt-table td    { padding: 9px 12px; border-bottom: 1px solid var(--border-light); vertical-align: middle; color: var(--table-td-color); }
 .rpt-table tbody tr:last-child td { border-bottom: none; }
 .rpt-table tbody tr:hover { background: var(--off-white); }
-.rpt-row-flag    { background: #fff7f7 !important; }
+.rpt-row-flag    { background: white !important; }
 .rpt-test-name   { font-weight: 500; color: var(--navy-mid); }
 .rpt-test-code   { font-size: 10px; color: var(--slate-light); margin-top: 1px; }
 .rpt-value       { font-weight: 600; font-size: 13px; }

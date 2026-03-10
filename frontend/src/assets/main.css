@@ -21,6 +21,11 @@
   --border:         #e5e7eb;
   --border-light:   #f3f4f6;
   --off-white:      #f9fafb;
+
+  /* ── Table tokens (change here to update all tables) ── */
+  --table-head-bg:    #f1f1f1;
+  --table-head-color: #323232;
+  --table-td-color:   #3f3f3f;
   --white:          #ffffff;
   --shadow-sm:      0 1px 2px rgba(0,0,0,0.05);
   --shadow:         0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
@@ -178,40 +183,54 @@ body {
 }
 .toolbar-right { margin-left: auto; display: flex; gap: 8px; }
 
-/* ── Table card (white box with border, no outer shadow) ── */
+/* ── Data Table ── */
 .table-card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-thead tr { background: var(--white); border-bottom: 1px solid var(--border); }
-thead th {
-  padding: 12px 18px;
-  font-size: 12.5px; font-weight: 600;
-  color: var(--slate); text-align: left;
-  white-space: nowrap; letter-spacing: 0.1px;
+thead tr {
+  background: var(--table-head-bg);
+  border-bottom: 1.5px solid #e5e7eb;
 }
-tbody tr { border-bottom: 1px solid var(--border-light); transition: background 0.1s; }
-tbody tr:hover { background: #fafafa; }
+thead th {
+  padding: 11px 18px;
+  font-size: 12px; font-weight: 700;
+  color: var(--table-head-color); text-align: left;
+  white-space: nowrap; letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.1s;
+}
+tbody tr:hover { background: #f8faff; }
 tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 13px 18px; font-size: 13.5px; color: var(--navy-mid); }
+tbody td {
+  padding: 13px 18px;
+  font-size: 13.5px; color: var(--table-td-color);
+  vertical-align: middle;
+}
 .table-footer {
-  padding: 12px 18px;
-  border-top: 1px solid var(--border-light);
+  padding: 11px 18px;
+  border-top: 1px solid #f3f4f6;
+  background: #fafafa;
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; color: var(--slate);
+  font-size: 12px; color: #9ca3af;
 }
 .pagination-btns { display: flex; gap: 6px; }
 .pagination-btn {
-  padding: 5px 14px; border: 1px solid var(--border);
+  padding: 5px 14px; border: 1px solid #e5e7eb;
   border-radius: 6px; background: white;
-  font-size: 12px; color: var(--slate);
+  font-size: 12px; color: #6b7280;
   cursor: pointer; font-family: 'Inter', sans-serif;
+  transition: all 0.1s;
 }
-.pagination-btn:hover:not(:disabled) { border-color: var(--primary-light); color: var(--primary-mid); }
+.pagination-btn:hover:not(:disabled) { border-color: #93c5fd; color: #2563eb; background: #eff6ff; }
 .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Action icon buttons (eye / edit / reset / delete) ── */
@@ -245,6 +264,46 @@ tbody td { padding: 13px 18px; font-size: 13.5px; color: var(--navy-mid); }
 .btn-danger:hover { background: #b91c1c; }
 .btn-sm       { padding: 5px 12px; font-size: 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Action buttons: PDF / Excel / Print ── */
+.btn-pdf {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: var(--radius); border: none;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white; box-shadow: 0 2px 6px rgba(220,38,38,0.28);
+  transition: all 0.15s;
+}
+.btn-pdf:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220,38,38,0.38); }
+.btn-pdf:active { transform: translateY(0); }
+.btn-pdf:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.btn-excel {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: var(--radius); border: none;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: white; box-shadow: 0 2px 6px rgba(22,163,74,0.28);
+  transition: all 0.15s;
+}
+.btn-excel:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(22,163,74,0.38); }
+.btn-excel:active { transform: translateY(0); }
+.btn-excel:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.btn-print {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: var(--radius); border: none;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white; box-shadow: 0 2px 6px rgba(37,99,235,0.28);
+  transition: all 0.15s;
+}
+.btn-print:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.38); }
+.btn-print:active { transform: translateY(0); }
+.btn-print:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 /* ── Stat cards row ── */
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
@@ -550,3 +609,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 @media (max-width: 900px) {
   .shift-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Status pills (PatientRosterView) ── */
+.status-pill {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+}
+.pill-ready  { background: #dcfce7; color: #16a34a; }
+.pill-stale  { background: #fef9c3; color: #ca8a04; }
+.pill-nodata { background: #f1f5f9; color: #94a3b8; }

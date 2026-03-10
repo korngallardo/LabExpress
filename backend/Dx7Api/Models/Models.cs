@@ -46,6 +46,9 @@ public class User
     [Required, MaxLength(100)] public string Name { get; set; } = "";
     public UserRole Role { get; set; } = UserRole.shift_nurse;
     public bool IsActive { get; set; } = true;
+    public string? AvatarUrl { get; set; }
+    [MaxLength(200)] public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetExpiry { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     [ForeignKey("TenantId")] public Tenant Tenant { get; set; } = null!;

@@ -31,14 +31,14 @@ export const useAuthStore = defineStore('auth', {
 
     // Per PRD Role Permissions Matrix
     canSelectShift:    (s) => ['charge_nurse', 'shift_nurse', 'md', 'clinic_admin', 'pl_admin'].includes(s.user?.role),
-    canSelectPatients: (s) => s.user?.role === 'charge_nurse',
+    canSelectPatients: (s) => ['charge_nurse', 'clinic_admin', 'pl_admin'].includes(s.user?.role),
     canAssignChairs:   (s) => s.user?.role === 'charge_nurse',
     canViewResults:    (s) => ['charge_nurse', 'shift_nurse', 'md'].includes(s.user?.role),
     canViewNotes:      (s) => ['charge_nurse', 'shift_nurse', 'md'].includes(s.user?.role),
     canWriteNotes:     (s) => s.user?.role === 'md',
     canExport:         (s) => ['charge_nurse', 'clinic_admin', 'pl_admin'].includes(s.user?.role),
     canPrint:          (s) => ['charge_nurse', 'md', 'clinic_admin', 'pl_admin'].includes(s.user?.role),
-    canManageSession:  (s) => s.user?.role === 'charge_nurse',
+    canManageSession:  (s) => ['charge_nurse', 'clinic_admin', 'pl_admin'].includes(s.user?.role),
     canManageShifts:   (s) => ['charge_nurse', 'clinic_admin', 'pl_admin'].includes(s.user?.role),
     canManageUsers:    (s) => ['clinic_admin', 'pl_admin'].includes(s.user?.role),
     canManageClinics:  (s) => s.user?.role === 'pl_admin',
@@ -59,14 +59,17 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       try {
         const { data } = await authApi.login(email, password)
-        this.token = data.token
-        this.user = data.user
+        // Normalise — ensure id is always lowercase regardless of server casing
+        const normaliseClient = (c) => c ? { ...c, id: c.id || c.Id } : null
+        const normaliseUser   = (u) => u ? { ...u, id: u.id || u.Id } : null
+        this.token  = data.token
+        this.user   = normaliseUser(data.user)
         this.tenant = data.tenant
-        this.client = data.client
-        localStorage.setItem('dx7_token', data.token)
-        localStorage.setItem('dx7_user', JSON.stringify(data.user))
-        localStorage.setItem('dx7_tenant', JSON.stringify(data.tenant))
-        localStorage.setItem('dx7_client', JSON.stringify(data.client))
+        this.client = normaliseClient(data.client)
+        localStorage.setItem('dx7_token',  data.token)
+        localStorage.setItem('dx7_user',   JSON.stringify(this.user))
+        localStorage.setItem('dx7_tenant', JSON.stringify(this.tenant))
+        localStorage.setItem('dx7_client', JSON.stringify(this.client))
         return true
       } catch (err) {
         this.error = err.response?.data?.message || 'Login failed'

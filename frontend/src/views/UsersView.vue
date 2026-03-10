@@ -13,7 +13,7 @@
     <!-- Filters -->
     <div class="card" style="padding:14px 20px; margin-bottom:16px">
       <div class="flex gap-3">
-        <input v-model="search" class="form-input" style="max-width:280px; margin:0" placeholder="🔍  Search by name or email…" />
+        <input v-model="search" class="form-input" style="max-width:280px; margin:0" placeholder="🔍  Search by name or email…" autocomplete="new-password" readonly @focus="($event.target.removeAttribute('readonly'))" />
         <select v-model="roleFilter" class="form-input" style="max-width:180px; margin:0">
           <option value="">All Roles</option>
           <option v-for="r in availableRoles" :key="r.value" :value="r.value">{{ r.label }}</option>
@@ -32,12 +32,12 @@
     <!-- Users table -->
     <div v-if="loading" class="loading">Loading users…</div>
     <div v-else class="card">
-      <div class="table-wrap">
-        <table>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
           <thead>
             <tr>
               <th>Name</th>
-              <th>Email</th>
               <th>Role</th>
               <th>Clinic</th>
               <th>Status</th>
@@ -48,10 +48,23 @@
           <tbody>
             <tr v-for="u in filtered" :key="u.id">
               <td>
-                <div style="font-weight:500">{{ u.name }}</div>
-                <div v-if="u.id === auth.user?.id" style="font-size:11px; color:var(--teal)">● You</div>
+                <div class="user-avatar-row">
+                  <div class="user-avatar-wrap" @click="auth.isAdmin && triggerAvatarUpload(u)" :style="auth.isAdmin ? 'cursor:pointer' : ''">
+                    <img v-if="u.avatarUrl" :src="u.avatarUrl" class="user-avatar user-avatar-img" :alt="u.name" />
+                    <div v-else class="user-avatar" :style="{ background: avatarBg(u.name) }">{{ initials(u.name) }}</div>
+                    <div v-if="auth.isAdmin" class="avatar-overlay">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-weight:600; color:#111827">{{ u.name }}</div>
+                    <div style="font-size:11px; color:var(--slate)">{{ u.email }}</div>
+                    <div v-if="u.id === auth.user?.id" style="font-size:11px; color:var(--teal); font-weight:600">● You</div>
+                    <button v-if="auth.isAdmin && u.avatarUrl" class="avatar-remove-btn" @click.stop="removeAvatar(u)">✕ Remove photo</button>
+                  </div>
+                </div>
+                <input type="file" :data-uid="u.id" class="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none" @change="onAvatarFile($event, u)" />
               </td>
-              <td class="text-sm text-slate">{{ u.email }}</td>
               <td>
                 <span class="role-badge" :class="`role-${u.role}`">
                   {{ roleLabel(u.role) }}
@@ -79,10 +92,14 @@
               </td>
             </tr>
             <tr v-if="filtered.length === 0">
-              <td colspan="7" style="text-align:center; padding:32px; color:var(--slate)">No users found</td>
+              <td colspan="6" style="text-align:center; padding:32px; color:var(--slate)">No users found</td>
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span>Showing {{ filtered.length }} of {{ users.length }} user{{ users.length !== 1 ? 's' : '' }}</span>
+        </div>
       </div>
     </div>
 
@@ -187,7 +204,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useAuthStore } from '../store/auth'
-import api from '../services/api'
+import api, { usersApi } from '../services/api'
 
 const auth = useAuthStore()
 const users = ref([])
@@ -246,6 +263,52 @@ const filtered = computed(() =>
     return matchSearch && matchRole && matchStatus
   })
 )
+
+function triggerAvatarUpload(user) {
+  const input = document.querySelector(`.avatar-file-input[data-uid="${user.id}"]`)
+  input?.click()
+}
+
+async function onAvatarFile(evt, user) {
+  const file = evt.target.files[0]
+  if (!file) return
+  try {
+    const { data } = await usersApi.uploadAvatar(user.id, file)
+    user.avatarUrl = data.avatarUrl + '?t=' + Date.now()
+  } catch (e) {
+    alert('Upload failed: ' + (e.response?.data || e.message))
+  }
+  evt.target.value = ''
+}
+
+async function removeAvatar(user) {
+  if (!confirm('Remove this photo?')) return
+  try {
+    await usersApi.deleteAvatar(user.id)
+    user.avatarUrl = null
+  } catch (e) {
+    alert('Failed: ' + (e.response?.data || e.message))
+  }
+}
+
+function initials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase()
+}
+
+const avatarPalette = [
+  '#1d4ed8','#0891b2','#059669','#7c3aed',
+  '#db2777','#d97706','#dc2626','#0284c7'
+]
+function avatarBg(name) {
+  if (!name) return '#6b7280'
+  let hash = 0
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff
+  return avatarPalette[Math.abs(hash) % avatarPalette.length]
+}
 
 function roleLabel(role) {
   return allRoles.value.find(r => r.value === role)?.label || role
@@ -372,7 +435,10 @@ async function changePassword() {
 }
 
 onMounted(async () => {
+  search.value = ''
   await Promise.all([load(), loadClinics(), loadRoles()])
+  // clear again after load in case browser autofills async
+  setTimeout(() => { search.value = '' }, 100)
 })
 </script>
 
@@ -418,4 +484,26 @@ onMounted(async () => {
   padding: 18px 22px;
   border-bottom: 1px solid var(--border);
 }
+.user-avatar-row { display: flex; align-items: center; gap: 10px; }
+.user-avatar-wrap { position: relative; flex-shrink: 0; }
+.user-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: white;
+  letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.user-avatar-img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; }
+.avatar-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s;
+}
+.user-avatar-wrap:hover .avatar-overlay { opacity: 1; }
+.avatar-remove-btn {
+  margin-top: 3px; font-size: 10px; color: var(--red);
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-family: 'Inter', sans-serif;
+}
+.avatar-remove-btn:hover { text-decoration: underline; }
 </style>

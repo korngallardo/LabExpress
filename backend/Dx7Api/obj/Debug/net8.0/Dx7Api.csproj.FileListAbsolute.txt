@@ -128,3 +128,4 @@ D:\development\LabExpress\dx7\backend\Dx7Api\obj\Debug\net8.0\refint\Dx7Api.dll
 D:\development\LabExpress\dx7\backend\Dx7Api\obj\Debug\net8.0\Dx7Api.pdb
 D:\development\LabExpress\dx7\backend\Dx7Api\obj\Debug\net8.0\Dx7Api.genruntimeconfig.cache
 D:\development\LabExpress\dx7\backend\Dx7Api\obj\Debug\net8.0\ref\Dx7Api.dll
+D:\development\LabExpress\dx7\backend\Dx7Api\bin\Debug\net8.0\Dx7Api.staticwebassets.runtime.json

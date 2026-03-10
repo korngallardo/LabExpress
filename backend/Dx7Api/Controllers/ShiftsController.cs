@@ -158,18 +158,21 @@ public class ShiftsController : TenantBaseController
         }
         if (!resolvedClientBulk.HasValue) return BadRequest(new { message = "Client context required" });
 
-        var defaultShifts = new[]
-        {
-            new { Num = 1, Label = "Morning",   Start = "06:00", End = "10:00" },
-            new { Num = 2, Label = "Mid-Morning",Start = "10:00", End = "14:00" },
-            new { Num = 3, Label = "Afternoon",  Start = "14:00", End = "18:00" },
-            new { Num = 4, Label = "Evening",    Start = "18:00", End = "22:00" },
-        };
+        // Use custom shifts from request, or fall back to defaults
+        var shiftsToCreate = req.Shifts?.Count > 0
+            ? req.Shifts.Select(s => new { Num = s.ShiftNumber, Label = s.ShiftLabel, Start = s.StartTime, End = s.EndTime }).ToArray()
+            : new[]
+            {
+                new { Num = 1, Label = "Morning",     Start = "06:00", End = "10:00" },
+                new { Num = 2, Label = "Mid-Morning",  Start = "10:00", End = "14:00" },
+                new { Num = 3, Label = "Afternoon",    Start = "14:00", End = "18:00" },
+                new { Num = 4, Label = "Evening",      Start = "18:00", End = "22:00" },
+            };
 
         var created = 0;
         for (var d = req.FromDate; d <= req.ToDate; d = d.AddDays(1))
         {
-            foreach (var shift in defaultShifts)
+            foreach (var shift in shiftsToCreate)
             {
                 var exists = await _db.ShiftSchedules.AnyAsync(s =>
                     s.ClientId == resolvedClientBulk.Value &&

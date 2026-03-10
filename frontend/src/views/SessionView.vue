@@ -11,14 +11,17 @@
           </div>
         </div>
         <div class="flex gap-2">
-          <button v-if="auth.canExport" class="btn btn-outline btn-sm" @click="showPrintModal = true">
-            🖨️ Print / PDF
+          <button v-if="auth.canExport" class="btn-excel" @click="exportCsv">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Export CSV
           </button>
-          <button v-if="auth.canExport" class="btn btn-outline btn-sm" @click="exportCsv">
-            ↓ Export CSV
+          <button v-if="auth.canPrint" class="btn-pdf" @click="showPrintModal = true; printMode = 'download'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+            Download PDF
           </button>
-          <button v-if="auth.canPrint" class="btn btn-primary btn-sm" @click="showReport = true">
-            🖨 Print / PDF
+          <button v-if="auth.canPrint" class="btn-print" @click="showPrintModal = true; printMode = 'print'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
           </button>
           <router-link to="/shifts" class="btn btn-outline btn-sm">← Back</router-link>
         </div>
@@ -27,6 +30,10 @@
 
     <div class="doctrine-bar">
       Results are displayed as-is from the laboratory source. No interpretation. No risk labels. Data only.
+    </div>
+
+    <div v-if="loadError" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13px; font-weight:600;">
+      ⚠ {{ loadError }}
     </div>
 
     <div v-if="loading" class="loading">Loading results…</div>
@@ -117,6 +124,9 @@
               </tbody>
             </table>
           </div>
+          <div class="table-footer">
+            <span>Showing {{ results.length }} result{{ results.length !== 1 ? 's' : '' }}</span>
+          </div>
         </div>
       </div>
 
@@ -160,7 +170,7 @@
       <div class="modal" style="width:680px; max-height:90vh">
         <div class="modal-header">
           <div>
-            <div class="modal-title">🖨️ Print / Download PDF</div>
+            <div class="modal-title">{{ printMode === 'download' ? '↓ Download PDF' : '🖨️ Print' }}</div>
             <div class="text-slate text-sm" style="margin-top:2px">{{ session?.patientName }}</div>
           </div>
           <button class="modal-close" @click="showPrintModal = false">✕</button>
@@ -289,8 +299,11 @@
 
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showPrintModal = false">Cancel</button>
-          <button class="btn btn-outline" @click="downloadPdf">↓ Download PDF</button>
-          <button class="btn btn-primary" @click="printReport">🖨️ Print</button>
+          <button v-if="printMode === 'download'" class="btn btn-primary" @click="downloadPdf" :disabled="pdfLoading">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="margin-right:5px;vertical-align:-2px"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd"/></svg>
+            {{ pdfLoading ? 'Generating…' : 'Download PDF' }}
+          </button>
+          <button v-if="printMode === 'print'" class="btn btn-primary" @click="printReport">🖨️ Print</button>
         </div>
       </div>
     </div>
@@ -324,11 +337,13 @@ const session      = ref(null)
 const results      = ref([])
 const notes        = ref([])
 const loading      = ref(false)
+const loadError    = ref('')
 const newNote      = ref('')
 const editingNote  = ref(null)
 const editNoteText = ref('')
 const showReport = ref(false)
 const showPrintModal = ref(false)
+const printMode = ref('print') // 'print' | 'download'
 
 const printOpts = reactive({ priority: true, allResults: true, notes: true })
 const printDate = new Date().toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })
@@ -353,114 +368,144 @@ function formatDate(dt) {
   return new Date(dt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-// ── Print using browser print dialog ──
-function printReport() {
-  const content = document.getElementById('print-preview').innerHTML
-  const win = window.open('', '_blank', 'width=900,height=700')
-  win.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Lab Results — ${session.value?.patientName}</title>
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', Arial, sans-serif; font-size: 12px; color: #111827; padding: 24px; }
-        .pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 14px; }
-        .pr-logo { font-size: 28px; font-weight: 900; color: #1e3a8a; letter-spacing: -1px; }
-        .pr-clinic { font-size: 14px; font-weight: 700; color: #111827; }
-        .pr-meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
-        .pr-patient-bar { display: flex; gap: 20px; background: #eff6ff; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; flex-wrap: wrap; }
-        .pr-patient-detail { display: flex; flex-direction: column; }
-        .pr-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
-        .pr-val { font-size: 12px; font-weight: 700; color: #111827; margin-top: 2px; }
-        .pr-section-title { font-size: 13px; font-weight: 700; color: #1e3a8a; border-bottom: 1px solid #bfdbfe; padding-bottom: 4px; margin: 16px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .pr-priority-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 4px; }
-        .pr-priority-cell { border: 1.5px solid #e5e7eb; border-radius: 6px; padding: 12px; text-align: center; }
-        .pr-test-name { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .pr-val-big { font-size: 26px; font-weight: 800; color: #111827; line-height: 1; }
-        .pr-unit { font-size: 11px; font-weight: 400; color: #6b7280; }
-        .pr-flag { font-size: 10px; font-weight: 700; margin-top: 4px; }
-        .pr-flag-h { color: #dc2626; }
-        .pr-flag-l { color: #2563eb; }
-        .flag-h { color: #dc2626 !important; }
-        .flag-l { color: #2563eb !important; }
-        .pr-ref { font-size: 10px; color: #9ca3af; margin-top: 2px; }
-        .pr-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        .pr-table th { background: #f9fafb; padding: 7px 10px; text-align: left; font-weight: 600; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
-        .pr-table td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; }
-        .pr-row-flag { background: #fff7f7; }
-        .pr-result { font-weight: 700; }
-        .pr-code { color: #9ca3af; font-size: 10px; }
-        .pr-note { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
-        .pr-note-meta { font-size: 10px; color: #6b7280; margin-bottom: 4px; font-weight: 600; }
-        .pr-note-body { font-size: 12px; color: #374151; line-height: 1.5; white-space: pre-wrap; }
-        .pr-footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; text-align: center; }
-        @media print { body { padding: 0; } }
-      </style>
-    </head>
-    <body>${content}</body>
-    </html>
-  `)
-  win.document.close()
-  win.focus()
-  setTimeout(() => { win.print() }, 500)
+// ── Shared: build full HTML document for print/PDF ──
+function buildPrintHtml(content, title) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111827; padding: 24px; }
+    .pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 14px; }
+    .pr-logo { font-size: 28px; font-weight: 900; color: #1e3a8a; letter-spacing: -1px; }
+    .pr-clinic { font-size: 14px; font-weight: 700; color: #111827; }
+    .pr-meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .pr-patient-bar { display: flex; gap: 20px; background: #eff6ff; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .pr-patient-detail { display: flex; flex-direction: column; }
+    .pr-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
+    .pr-val { font-size: 12px; font-weight: 700; color: #111827; margin-top: 2px; }
+    .pr-section-title { font-size: 13px; font-weight: 700; color: #1e3a8a; border-bottom: 1px solid #bfdbfe; padding-bottom: 4px; margin: 16px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pr-priority-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 4px; }
+    .pr-priority-cell { border: 1.5px solid #e5e7eb; border-radius: 6px; padding: 12px; text-align: center; }
+    .pr-test-name { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .pr-val-big { font-size: 26px; font-weight: 800; color: #111827; line-height: 1; }
+    .pr-unit { font-size: 11px; font-weight: 400; color: #6b7280; }
+    .pr-flag { font-size: 10px; font-weight: 700; margin-top: 4px; }
+    .pr-flag-h, .flag-h { color: #dc2626; }
+    .pr-flag-l, .flag-l { color: #2563eb; }
+    .pr-ref { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+    .pr-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .pr-table th { background: #f9fafb; padding: 7px 10px; text-align: left; font-weight: 600; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .pr-table td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; }
+    .pr-row-flag { background: white; }
+    .pr-result { font-weight: 700; }
+    .pr-code { color: #9ca3af; font-size: 10px; }
+    .pr-note { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+    .pr-note-meta { font-size: 10px; color: #6b7280; margin-bottom: 4px; font-weight: 600; }
+    .pr-note-body { font-size: 12px; color: #374151; line-height: 1.5; white-space: pre-wrap; }
+    .pr-footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; text-align: center; }
+    @media print { body { padding: 0; } button { display: none !important; } }
+  </style>
+</head>
+<body>${content}</body>
+</html>`
 }
 
-// ── Download as PDF via browser print-to-PDF ──
-function downloadPdf() {
+// ── Print — uses hidden iframe to avoid popup blocker ──
+function printReport() {
   const content = document.getElementById('print-preview').innerHTML
-  const patientName = session.value?.patientName?.replace(/ /g, '_') || 'results'
-  const win = window.open('', '_blank', 'width=900,height=700')
-  win.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Lab Results — ${session.value?.patientName}</title>
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', Arial, sans-serif; font-size: 12px; color: #111827; padding: 24px; }
-        .pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 14px; }
-        .pr-logo { font-size: 28px; font-weight: 900; color: #1e3a8a; letter-spacing: -1px; }
-        .pr-clinic { font-size: 14px; font-weight: 700; color: #111827; }
-        .pr-meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
-        .pr-patient-bar { display: flex; gap: 20px; background: #eff6ff; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; flex-wrap: wrap; }
-        .pr-patient-detail { display: flex; flex-direction: column; }
-        .pr-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
-        .pr-val { font-size: 12px; font-weight: 700; color: #111827; margin-top: 2px; }
-        .pr-section-title { font-size: 13px; font-weight: 700; color: #1e3a8a; border-bottom: 1px solid #bfdbfe; padding-bottom: 4px; margin: 16px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .pr-priority-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 4px; }
-        .pr-priority-cell { border: 1.5px solid #e5e7eb; border-radius: 6px; padding: 12px; text-align: center; }
-        .pr-test-name { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .pr-val-big { font-size: 26px; font-weight: 800; color: #111827; line-height: 1; }
-        .pr-unit { font-size: 11px; font-weight: 400; color: #6b7280; }
-        .pr-flag { font-size: 10px; font-weight: 700; margin-top: 4px; }
-        .pr-flag-h { color: #dc2626; }
-        .pr-flag-l { color: #2563eb; }
-        .flag-h { color: #dc2626 !important; }
-        .flag-l { color: #2563eb !important; }
-        .pr-ref { font-size: 10px; color: #9ca3af; margin-top: 2px; }
-        .pr-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        .pr-table th { background: #f9fafb; padding: 7px 10px; text-align: left; font-weight: 600; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
-        .pr-table td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; }
-        .pr-row-flag { background: #fff7f7; }
-        .pr-result { font-weight: 700; }
-        .pr-code { color: #9ca3af; font-size: 10px; }
-        .pr-note { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
-        .pr-note-meta { font-size: 10px; color: #6b7280; margin-bottom: 4px; font-weight: 600; }
-        .pr-note-body { font-size: 12px; color: #374151; line-height: 1.5; white-space: pre-wrap; }
-        .pr-footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; text-align: center; }
-        @media print { body { padding: 0; } }
-      </style>
-    </head>
-    <body>${content}</body>
-    </html>
-  `)
-  win.document.close()
-  win.focus()
-  setTimeout(() => {
-    win.document.title = `DX7_Results_${patientName}`
-    win.print()
-  }, 500)
+  const html = buildPrintHtml(content, 'Lab Results — ' + (session.value?.patientName || ''))
+  let iframe = document.getElementById('dx7-print-frame')
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = 'dx7-print-frame'
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:900px;height:600px;border:none;'
+    document.body.appendChild(iframe)
+  }
+  iframe.srcdoc = html
+  iframe.onload = () => { iframe.contentWindow.focus(); iframe.contentWindow.print() }
+}
+
+// ── Download PDF — html2canvas + jsPDF (same approach as ResultReportModal) ──
+const pdfLoading = ref(false)
+async function downloadPdf() {
+  if (pdfLoading.value) return
+  pdfLoading.value = true
+  showPrintModal.value = false
+
+  const body = document.getElementById('print-preview')
+  if (!body) { pdfLoading.value = false; return }
+
+  const patientName = (session.value?.patientName || 'report').replace(/[^a-zA-Z0-9]/g, '_')
+  const dateStr = session.value?.sessionDate || ''
+  const filename = 'DX7_Results_' + patientName + '_' + dateStr + '.pdf'
+
+  const html = buildPrintHtml(body.innerHTML, filename)
+  const fullHtml = html.replace('</head>', `
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+  </head>`)
+
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:794px;height:1123px;border:none'
+  document.body.appendChild(iframe)
+
+  iframe.contentDocument.open()
+  iframe.contentDocument.write(fullHtml)
+  iframe.contentDocument.close()
+
+  await new Promise(resolve => setTimeout(resolve, 1500))
+
+  try {
+    const { jsPDF } = iframe.contentWindow.jspdf
+    const canvas = await iframe.contentWindow.html2canvas(iframe.contentDocument.body, {
+      scale: 2, useCORS: true, windowWidth: 794, width: 794
+    })
+    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const imgH  = (canvas.height * pageW) / canvas.width
+
+    let yPos = 0, remaining = imgH
+    while (remaining > 0) {
+      pdf.addImage(imgData, 'JPEG', 0, -yPos, pageW, imgH)
+      remaining -= pageH
+      yPos += pageH
+      if (remaining > 0) pdf.addPage()
+    }
+    const pdfBlob = pdf.output('blob')
+
+    if (window.showSaveFilePicker) {
+      try {
+        const fh = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }]
+        })
+        const w = await fh.createWritable()
+        await w.write(pdfBlob)
+        await w.close()
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          const url = URL.createObjectURL(pdfBlob)
+          const a = document.createElement('a')
+          a.href = url; a.download = filename; a.click()
+          URL.revokeObjectURL(url)
+        }
+      }
+    } else {
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = url; a.download = filename; a.click()
+      URL.revokeObjectURL(url)
+    }
+  } catch (e) {
+    alert('Failed to generate PDF: ' + e.message)
+  } finally {
+    document.body.removeChild(iframe)
+    pdfLoading.value = false
+  }
 }
 
 async function loadResults(patientId) {
@@ -470,6 +515,7 @@ async function loadResults(patientId) {
 
 async function loadSession() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await sessionsApi.getById(sessionId)
     session.value = data
@@ -479,6 +525,8 @@ async function loadSession() {
         notesApi.getBySession(sessionId).then(r => { notes.value = r.data })
       ])
     }
+  } catch (e) {
+    loadError.value = `Error ${e.response?.status}: ${e.response?.data?.message || e.response?.data || e.message}`
   } finally { loading.value = false }
 }
 
@@ -535,6 +583,7 @@ onMounted(loadSession)
 .note-body { font-size: 13.5px; color: #334155; line-height: 1.5; white-space: pre-wrap; }
 .note-actions { margin-top: 8px; display: flex; gap: 6px; }
 
+
 /* print options checkboxes */
 .print-opt {
   display: inline-flex; align-items: center; gap: 6px;
@@ -547,20 +596,50 @@ onMounted(loadSession)
 
 /* print preview */
 .print-preview {
-  background: white; border: 1px solid var(--border); border-radius: 8px;
-  padding: 24px; font-family: 'Inter', Arial, sans-serif; font-size: 12px; color: #111827;
+  background: linear-gradient(160deg, #f0f7ff 0%, #ffffff 40%);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 28px;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 12px;
+  color: #111827;
+  box-shadow: 0 4px 24px rgba(37,99,235,0.07), inset 0 1px 0 rgba(255,255,255,0.8);
 }
-.pr-header { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 14px; }
-.pr-logo { font-family: 'DM Sans', sans-serif; font-size: 26px; font-weight: 900; color: #1e3a8a; letter-spacing: -1px; }
-.pr-clinic { font-size: 13px; font-weight: 700; color: #111827; }
-.pr-meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
-.pr-patient-bar { display: flex; gap: 20px; background: #eff6ff; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; flex-wrap: wrap; }
-.pr-patient-detail { display: flex; flex-direction: column; }
-.pr-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
-.pr-val { font-size: 12px; font-weight: 700; color: #111827; margin-top: 2px; }
-.pr-section-title { font-size: 11px; font-weight: 700; color: #1e3a8a; border-bottom: 1px solid #bfdbfe; padding-bottom: 4px; margin: 14px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.pr-header {
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #2563eb 100%);
+  border-radius: 10px; padding: 16px 20px; margin-bottom: 16px;
+  box-shadow: 0 4px 16px rgba(30,58,138,0.25);
+}
+.pr-logo { font-family: 'DM Sans', sans-serif; font-size: 28px; font-weight: 900; color: white; letter-spacing: -1px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+.pr-clinic { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.95); }
+.pr-meta { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+.pr-patient-bar {
+  display: flex; gap: 0; margin-bottom: 16px; flex-wrap: wrap;
+  border: 1.5px solid #bfdbfe; border-radius: 10px; overflow: hidden;
+  background: white; box-shadow: 0 2px 8px rgba(37,99,235,0.06);
+}
+.pr-patient-detail {
+  display: flex; flex-direction: column; padding: 10px 18px; flex: 1;
+  border-right: 1px solid #e0eaff;
+}
+.pr-patient-detail:last-child { border-right: none; }
+.pr-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #93c5fd; font-weight: 700; }
+.pr-val { font-size: 12px; font-weight: 700; color: #1e3a8a; margin-top: 3px; }
+.pr-section-title {
+  font-size: 10px; font-weight: 800; color: #1d4ed8;
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 6px 12px; margin: 14px 0 10px;
+  background: linear-gradient(90deg, #eff6ff, transparent);
+  border-left: 3px solid #1d4ed8; border-radius: 0 4px 4px 0;
+}
 .pr-priority-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
-.pr-priority-cell { border: 1.5px solid #e5e7eb; border-radius: 6px; padding: 10px; text-align: center; }
+.pr-priority-cell {
+  border: 1.5px solid #e0eaff; border-radius: 10px; padding: 14px 10px;
+  text-align: center; background: white;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.06);
+  transition: box-shadow .15s;
+}
 .pr-test-name { font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .pr-val-big { font-size: 24px; font-weight: 800; color: #111827; line-height: 1; }
 .pr-unit { font-size: 11px; font-weight: 400; color: #6b7280; }
@@ -571,7 +650,7 @@ onMounted(loadSession)
 .pr-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
 .pr-table th { background: #f9fafb; padding: 7px 8px; text-align: left; font-weight: 600; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-transform: uppercase; }
 .pr-table td { padding: 7px 8px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
-.pr-row-flag td { background: #fff7f7; }
+.pr-row-flag td { background: white; }
 .pr-result { font-weight: 700; }
 .pr-code { color: #9ca3af; font-size: 10px; font-family: monospace; }
 .pr-note { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }

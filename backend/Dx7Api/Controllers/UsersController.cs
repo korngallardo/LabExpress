@@ -11,7 +11,8 @@ namespace Dx7Api.Controllers;
 public class UsersController : TenantBaseController
 {
     private readonly AppDbContext _db;
-    public UsersController(AppDbContext db) => _db = db;
+    private readonly IWebHostEnvironment _env;
+    public UsersController(AppDbContext db, IWebHostEnvironment env) { _db = db; _env = env; }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] Guid? clientId)
@@ -35,7 +36,7 @@ public class UsersController : TenantBaseController
             u.Id, u.Name, u.Email, u.Role.ToString(),
             u.TenantId, u.ClientId,
             u.Client == null ? null : u.Client.Name,
-            u.IsActive, u.CreatedAt
+            u.IsActive, u.CreatedAt, u.AvatarUrl
         )));
     }
 
@@ -52,7 +53,7 @@ public class UsersController : TenantBaseController
             u.Id, u.Name, u.Email, u.Role.ToString(),
             u.TenantId, u.ClientId,
             u.Client == null ? null : u.Client.Name,
-            u.IsActive, u.CreatedAt
+            u.IsActive, u.CreatedAt, u.AvatarUrl
         ));
     }
 
@@ -86,7 +87,7 @@ public class UsersController : TenantBaseController
 
         return CreatedAtAction(nameof(GetById), new { id = user.Id },
             new UserDetailDto(user.Id, user.Name, user.Email, user.Role.ToString(),
-                user.TenantId, user.ClientId, null, user.IsActive, user.CreatedAt));
+                user.TenantId, user.ClientId, null, user.IsActive, user.CreatedAt, null));
     }
 
     [HttpPatch("{id}")]
@@ -177,6 +178,68 @@ public class UsersController : TenantBaseController
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // POST /api/users/{id}/avatar
+    [HttpPost("{id}/avatar")]
+    public async Task<IActionResult> UploadAvatar(Guid id, IFormFile file)
+    {
+        if (!IsPlAdmin && !IsClinicAdmin) return Forbid();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == TenantId);
+        if (user == null) return NotFound();
+
+        if (file == null || file.Length == 0) return BadRequest("No file provided");
+        if (file.Length > 2 * 1024 * 1024) return BadRequest("File too large (max 2MB)");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!new[] { ".jpg", ".jpeg", ".png", ".webp" }.Contains(ext))
+            return BadRequest("Only JPG, PNG, or WebP allowed");
+
+        var wwwroot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+        var avatarsDir = Path.Combine(wwwroot, "avatars");
+        Directory.CreateDirectory(avatarsDir);
+
+        // Delete old avatar if exists
+        if (!string.IsNullOrEmpty(user.AvatarUrl))
+        {
+            var oldPath = Path.Combine(wwwroot, user.AvatarUrl.TrimStart('/'));
+            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+        }
+
+        var filename = $"{user.Id}{ext}";
+        var filePath = Path.Combine(avatarsDir, filename);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(stream);
+
+        user.AvatarUrl = $"/avatars/{filename}";
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { avatarUrl = user.AvatarUrl });
+    }
+
+    // DELETE /api/users/{id}/avatar
+    [HttpDelete("{id}/avatar")]
+    public async Task<IActionResult> DeleteAvatar(Guid id)
+    {
+        if (!IsPlAdmin && !IsClinicAdmin) return Forbid();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == TenantId);
+        if (user == null) return NotFound();
+
+        if (!string.IsNullOrEmpty(user.AvatarUrl))
+        {
+            var wwwroot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+            var oldPath = Path.Combine(wwwroot, user.AvatarUrl.TrimStart('/'));
+            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+            user.AvatarUrl = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
         return NoContent();
     }
 }

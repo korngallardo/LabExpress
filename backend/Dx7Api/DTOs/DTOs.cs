@@ -82,7 +82,7 @@ public record ExportRequest(
 public record UserDetailDto(
     Guid Id, string Name, string Email, string Role,
     Guid TenantId, Guid? ClientId, string? ClientName,
-    bool IsActive, DateTime CreatedAt
+    bool IsActive, DateTime CreatedAt, string? AvatarUrl
 );
 
 public record CreateUserRequest(
@@ -124,7 +124,8 @@ public record UpdateShiftScheduleRequest(
 
 public record AssignNurseRequest(Guid NurseUserId, string AssignmentRole);
 
-public record BulkShiftRequest(DateOnly FromDate, DateOnly ToDate, int MaxChairs, Guid? ClientId = null);
+public record BulkShiftItemRequest(int ShiftNumber, string ShiftLabel, string StartTime, string EndTime);
+public record BulkShiftRequest(DateOnly FromDate, DateOnly ToDate, int MaxChairs, Guid? ClientId = null, List<BulkShiftItemRequest>? Shifts = null);
 
 // ── Clinics ───────────────────────────────────────────────────────────────────
 public record CreateClinicRequest(string Name, string Code, string? Address, string? LogoUrl);

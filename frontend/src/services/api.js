@@ -40,9 +40,11 @@ export const patientsApi = {
 // ── Sessions ─────────────────────────────────────────────────────────────────
 export const sessionsApi = {
   getAll: (params) => api.get('/sessions', { params }),
+  getById: (id) => api.get(`/sessions/${id}`),
   create: (data) => api.post('/sessions', data),
   bulkCreate: (data) => api.post('/sessions/bulk', data),
-  updateChair: (id, chair) => api.patch(`/sessions/${id}`, { chair })
+  updateChair: (id, chair) => api.patch(`/sessions/${id}`, { chair }),
+  delete: (id) => api.delete(`/sessions/${id}`)
 }
 
 // ── Results ──────────────────────────────────────────────────────────────────
@@ -58,10 +60,24 @@ export const notesApi = {
   update: (id, noteText) => api.patch(`/notes/${id}`, { noteText })
 }
 
+// ── Users (avatar)
+export const usersApi = {
+  uploadAvatar: (id, file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/users/' + id + '/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+  deleteAvatar: (id) => api.delete('/users/' + id + '/avatar')
+}
+
 // ── Export ───────────────────────────────────────────────────────────────────
 export const exportApi = {
   export: (data) => api.post('/export', data, {
     responseType: data.format === 'csv' ? 'blob' : 'json'
+  }),
+  sessionPdf: (sessionId, opts) => api.get('/export/session-pdf', {
+    params: { sessionId, ...opts },
+    responseType: 'blob'
   })
 }
 

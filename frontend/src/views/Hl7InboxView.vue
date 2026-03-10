@@ -81,47 +81,58 @@
         </div>
       </div>
 
-      <div v-if="loadingLog" class="loading">Loading log...</div>
-      <div v-else-if="filteredLog.length === 0" class="empty-state">
-        <div class="empty-icon">📭</div>
-        <div class="empty-title">No log entries yet</div>
-        <div class="text-slate text-sm">Drop HL7 files into the inbox folder or upload above</div>
-      </div>
-      <div v-else class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Status</th>
-              <th>Msg Type</th>
-              <th>Patient</th>
-              <th>Accession</th>
-              <th>Saved</th>
-              <th>File</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(e, i) in filteredLog" :key="i">
-              <td class="text-sm" style="white-space:nowrap; font-family:monospace">{{ e.timestamp }}</td>
-              <td>
-                <span class="status-pill" :class="pillClass(e.status)">{{ e.status }}</span>
-              </td>
-              <td class="text-sm" style="font-family:monospace">{{ e.msgType || '—' }}</td>
-              <td class="text-sm" style="font-weight:500">{{ cleanPatient(e.patient) || '—' }}</td>
-              <td class="text-sm" style="font-family:monospace">{{ cleanAcc(e.accession) || '—' }}</td>
-              <td class="text-sm" style="text-align:center">
-                <span v-if="savedCount(e.saved) > 0" style="color:var(--green); font-weight:600">
-                  {{ savedCount(e.saved) }}
-                </span>
-                <span v-else class="text-slate">—</span>
-              </td>
-              <td class="text-sm text-slate" style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ e.file }}</td>
-              <td class="text-sm text-slate" style="max-width:240px">{{ e.notes }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <template v-if="loadingLog">
+        <div class="loading">Loading log...</div>
+      </template>
+      <template v-else-if="filteredLog.length === 0">
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">No log entries yet</div>
+          <div class="text-slate text-sm">Drop HL7 files into the inbox folder or upload above</div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Msg Type</th>
+                <th>Patient</th>
+                <th>Accession</th>
+                <th>Saved</th>
+                <th>File</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(e, i) in filteredLog" :key="i">
+                <td class="text-sm" style="white-space:nowrap; font-family:monospace">{{ e.timestamp }}</td>
+                <td>
+                  <span class="status-pill" :class="pillClass(e.status)">{{ e.status }}</span>
+                </td>
+                <td class="text-sm" style="font-family:monospace">{{ e.msgType || '—' }}</td>
+                <td class="text-sm" style="font-weight:500">{{ cleanPatient(e.patient) || '—' }}</td>
+                <td class="text-sm" style="font-family:monospace">{{ cleanAcc(e.accession) || '—' }}</td>
+                <td class="text-sm" style="text-align:center">
+                  <span v-if="savedCount(e.saved) > 0" style="color:var(--green); font-weight:600">
+                    {{ savedCount(e.saved) }}
+                  </span>
+                  <span v-else class="text-slate">—</span>
+                </td>
+                <td class="text-sm text-slate" style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ e.file }}</td>
+                <td class="text-sm text-slate" style="max-width:240px">{{ e.notes }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+          <div class="table-footer">
+            <span>Showing {{ filteredLog.length }} record{{ filteredLog.length !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+      </template>
 
       <div style="padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center">
         <div class="text-slate text-sm">{{ filteredLog.length }} entries shown</div>

@@ -13,11 +13,12 @@
     <div v-if="loading" class="loading">Loading clinics…</div>
 
     <div v-else class="card">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
               <th>Code</th>
               <th>Address</th>
               <th>Users</th>
@@ -49,7 +50,11 @@
               <td colspan="6" style="text-align:center; padding:32px; color:var(--slate)">No clinics found</td>
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span>Showing {{ clinics.length }} record{{ clinics.length !== 1 ? 's' : '' }}</span>
+        </div>
       </div>
     </div>
 

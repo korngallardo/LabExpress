@@ -35,8 +35,35 @@
         <div class="shift-num">{{ s.shiftNumber }}</div>
         <div class="shift-label-text">{{ s.shiftLabel }}</div>
         <div class="shift-time">{{ s.startTime }} – {{ s.endTime }}</div>
-        <div class="shift-count">{{ s.patientCount }} patients</div>
-        <div class="shift-chairs">{{ s.maxChairs }} chairs max</div>
+
+        <!-- Progress bar -->
+        <div class="shift-progress-wrap">
+          <div class="shift-progress-bar">
+            <div
+              class="shift-progress-fill"
+              :style="{ width: s.maxChairs ? Math.min(100, (s.patientCount / s.maxChairs) * 100) + '%' : '0%' }"
+              :class="{
+                'prog-full':    s.patientCount >= s.maxChairs,
+                'prog-warn':    s.patientCount >= s.maxChairs * 0.8 && s.patientCount < s.maxChairs,
+                'prog-normal':  s.patientCount < s.maxChairs * 0.8
+              }"
+            ></div>
+          </div>
+          <div class="shift-progress-label">{{ s.patientCount }} / {{ s.maxChairs }} patients</div>
+        </div>
+
+        <!-- Assigned nurses -->
+        <div class="shift-nurses" v-if="s.nurses && s.nurses.length">
+          <span
+            v-for="n in s.nurses" :key="n.id"
+            class="shift-nurse-chip"
+            :title="n.nurseName"
+          >
+            <span class="nurse-avatar-xs">{{ n.nurseName.charAt(0) }}</span>
+            {{ n.nurseName.split(' ')[0] }}
+          </span>
+        </div>
+        <div v-else class="shift-no-nurse">No nurse assigned</div>
       </div>
     </div>
 
@@ -141,7 +168,7 @@ const todayIso    = new Date().toISOString().split('T')[0]
 
 // Clinics — only needed for multi-clinic admins
 const clinics       = ref([])
-const activeClientId = ref(auth.client?.id || null)
+const activeClientId = ref(auth.client?.id || auth.client?.Id || null)
 const activeClinic  = computed(() => clinics.value.find(c => c.id === activeClientId.value) || auth.client || null)
 const showClinicPicker = computed(() => auth.isPlAdmin && clinics.value.length > 1)
 
@@ -275,8 +302,31 @@ onMounted(async () => {
 .shift-num        { font-size: 42px; font-weight: 900; color: var(--navy); line-height: 1; font-family: 'DM Sans', sans-serif; }
 .shift-label-text { font-size: 13px; font-weight: 700; color: var(--navy-mid); margin-top: 4px; }
 .shift-time       { font-size: 12px; color: var(--slate); margin-top: 3px; }
-.shift-count      { font-size: 13px; font-weight: 700; color: var(--primary-mid); margin-top: 10px; }
-.shift-chairs     { font-size: 11px; color: var(--slate-light); margin-top: 2px; }
+
+/* Progress bar */
+.shift-progress-wrap  { margin-top: 14px; }
+.shift-progress-bar   { height: 6px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+.shift-progress-fill  { height: 100%; border-radius: 99px; transition: width .3s ease; }
+.prog-normal          { background: var(--primary-mid); }
+.prog-warn            { background: #f59e0b; }
+.prog-full            { background: #ef4444; }
+.shift-progress-label { font-size: 11px; color: var(--slate); margin-top: 4px; font-weight: 600; }
+
+/* Nurse chips */
+.shift-nurses    { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 10px; }
+.shift-nurse-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f0fdf4; border: 1px solid #86efac;
+  color: #166534; font-size: 11px; font-weight: 600;
+  padding: 2px 8px 2px 4px; border-radius: 20px;
+}
+.nurse-avatar-xs {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #16a34a; color: white;
+  font-size: 9px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.shift-no-nurse  { font-size: 11px; color: #cbd5e1; margin-top: 10px; font-style: italic; }
 
 .roster-section { margin-top: 28px; }
 .roster-header  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
